@@ -24,11 +24,13 @@ app.post("/signup", async (req, res) => {
   const country= req.body.country;
   const street= req.body.street;
   const pincode= req.body.pincode;
-  
+
 
   try {
     const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3);`;
     const response = await pgClient.query(insertQuery, [username, email, password]);
+    const adressInsertQuery = `INSERT INTO address (username, street, city, country, pincode,user_id) VALUES ($1, $2, $3, $4, $5,$6);`
+    const adressInsertResponse = await pgClient.query(adressInsertQuery,[city,pincode,street,country]);
     res.json({ message: "You have signed up" });
   } catch (e) {
     console.log(e);

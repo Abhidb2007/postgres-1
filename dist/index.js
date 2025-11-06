@@ -15,38 +15,21 @@ pgClient.connect()
     process.exit(1); // Exit if we can't connect to database
 });
 app.post("/signup", async (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+    const email = req.body.email;
+    const city = req.body.city;
+    const country = req.body.country;
+    const street = req.body.street;
+    const pincode = req.body.pincode;
     try {
-        const { username, password, email } = req.body;
-        // Validate required fields
-        if (!username || !password || !email) {
-            return res.status(400).json({
-                error: "Username, password, and email are required"
-            });
-        }
-        // Check if username already exists
-        const checkUser = await pgClient.query('SELECT username FROM users WHERE username = $1', [username]);
-        if (checkUser.rows.length > 0) {
-            return res.status(409).json({
-                error: `Username '${username}' is already taken. Please choose a different username.`
-            });
-        }
-        // Use parameterized query to prevent SQL injection
-        const insertQuery = 'INSERT INTO users (username, password, email) VALUES ($1, $2, $3) RETURNING *';
-        const response = await pgClient.query(insertQuery, [username, password, email]);
-        res.status(201).json({
-            message: "User signed up successfully",
-            user: {
-                username: response.rows[0].username,
-                email: response.rows[0].email
-            }
-        });
+        const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3);`;
+        const response = await pgClient.query(insertQuery, [username, email, password]);
+        res.json({ message: "You have signed up" });
     }
-    catch (error) {
-        console.error('Signup error:', error);
-        res.status(500).json({
-            error: "Internal server error"
-        });
+    catch (e) {
+        console.log(e);
+        res.json({ message: "Error while signing up" });
     }
 });
-app.listen(3000);
 //# sourceMappingURL=index.js.map
