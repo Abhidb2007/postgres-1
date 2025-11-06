@@ -6,15 +6,27 @@ app.use(express.json());
 
 const pgClient = new Client('postgresql://neondb_owner:npg_7LTawG5Usrjx@ep-aged-violet-adh5o17p-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
 
-pgClient.connect();
-app.post("/signup", async (req: express.Request, res: express.Response) => {
-    const username = req.body.username;
-    const password = req.body.password;
-    const email = req.body.email;
-    const insertQuery = `INSERT INTO users (username, password, email) VALUES ('abhi', 'abhidb81@gmail.com', '1212')`;
-    const response = await pgClient.query(insertQuery);
-    res.json({
-        message: "User signed up successfully"
+// Connect to database when starting the server
+pgClient.connect()
+    .then(() => {
+        console.log('Connected to database successfully');
     })
-})
-app.listen(3000);
+    .catch(err => {
+        console.error('Failed to connect to database:', err);
+        process.exit(1); // Exit if we can't connect to database
+    });
+
+app.post("/signup", async (req, res) => {
+  const username = req.body.username;
+  const password = req.body.password;
+  const email = req.body.email;
+
+  try {
+    const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3);`;
+    const response = await pgClient.query(insertQuery, [username, email, password]);
+    res.json({ message: "You have signed up" });
+  } catch (e) {
+    console.log(e);
+    res.json({ message: "Error while signing up" });
+  }
+});
