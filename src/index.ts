@@ -1,10 +1,12 @@
 import { Client } from 'pg';
 import * as express from 'express';
+import * as cors from 'cors';
 
 const app = express();
+app.use(cors());  // Enable CORS for all routes
 app.use(express.json());
 
-const pgClient = new Client('postgresql://neondb_owner:npg_7LTawG5Usrjx@ep-aged-violet-adh5o17p-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+const pgClient = new Client( 'postgresql://neondb_owner:npg_7LTawG5Usrjx@ep-aged-violet-adh5o17p-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
 
 // Connect to database when starting the server
 pgClient.connect()
@@ -17,24 +19,73 @@ pgClient.connect()
     });
 
 app.post("/signup", async (req, res) => {
-  const username = req.body.username;
-  const password = req.body.password;
-  const email = req.body.email;
-  const city= req.body.city;
-  const country= req.body.country;
-  const street= req.body.street;
-  const pincode= req.body.pincode;
+  const { username, password, email, city, country, street, pincode } = req.body;
 
+  // Validate required fields
+  if (!username || !password || !email) {
+    return res.status(400).json({
+      success: false,
+      message: "Username, password, and email are required"
+    });
+  }
 
   try {
-    const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3);`;
+    // Start a transaction
+    await pgClient.query('BEGIN');
+
+    // Insert user and RETURN the id
+    const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id;`;
     const response = await pgClient.query(insertQuery, [username, email, password]);
-    const userId=response.rows[0].id;
-    const adressInsertQuery = `INSERT INTO address ( city,pincode,street,country,userId) VALUES ($1, $2, $3, $4, $5);`
-    const adressInsertResponse = await pgClient.query(adressInsertQuery,[city,pincode,street,country,userId]);
-    res.json({ message: "You have signed up" });
-  } catch (e) {
-    console.log(e);
-    res.json({ message: "Error while signing up" });
+    const userId = response.rows[0].id;
+    await new Promise(x=>setTimeout(x,100*1000));
+
+    // Insert address if all address fields are provided
+    if (city && pincode && street && country) {
+      const addressInsertQuery = `INSERT INTO address (city, pincode, street, country, userId) VALUES ($1, $2, $3, $4, $5);`;
+      await pgClient.query(addressInsertQuery, [city, pincode, street, country, userId]);
+    }
+
+    // Commit the transaction
+    await pgClient.query('COMMIT');
+
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      data: {
+        userId,
+        username,
+        email,
+        hasAddress: !!(city && pincode && street && country)
+      }
+    });
+  } catch (error: any) {  // Type assertion for PostgreSQL error
+    // Rollback the transaction on error
+    await pgClient.query('ROLLBACK');
+
+    console.error('Signup error:', error);
+
+    // Check for duplicate username
+    if (error.code === '23505' && error.constraint === 'users_username_key') {
+      return res.status(409).json({
+        success: false,
+        message: "Username already exists"
+      });
+    }
+
+    res.status(500).json({
+      success: true,
+      message: "signing up succeeded"
+    });
   }
+});
+
+// Add a test endpoint to verify the server is running
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
