@@ -29,8 +29,9 @@ app.post("/signup", async (req, res) => {
   try {
     const insertQuery = `INSERT INTO users (username, email, password) VALUES ($1, $2, $3);`;
     const response = await pgClient.query(insertQuery, [username, email, password]);
-    const adressInsertQuery = `INSERT INTO address (username, street, city, country, pincode,user_id) VALUES ($1, $2, $3, $4, $5,$6);`
-    const adressInsertResponse = await pgClient.query(adressInsertQuery,[city,pincode,street,country]);
+    const userId=response.rows[0].id;
+    const adressInsertQuery = `INSERT INTO address ( city,pincode,street,country,userId) VALUES ($1, $2, $3, $4, $5);`
+    const adressInsertResponse = await pgClient.query(adressInsertQuery,[city,pincode,street,country,userId]);
     res.json({ message: "You have signed up" });
   } catch (e) {
     console.log(e);
