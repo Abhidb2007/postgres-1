@@ -10,8 +10,41 @@ const pgClient = new Client( 'postgresql://neondb_owner:npg_7LTawG5Usrjx@ep-aged
 
 // Connect to database when starting the server
 pgClient.connect()
-    .then(() => {
+    .then(async () => {
         console.log('Connected to database successfully');
+        
+        try {
+            // Drop existing tables
+            await pgClient.query('DROP TABLE IF EXISTS address CASCADE;');
+            await pgClient.query('DROP TABLE IF EXISTS users CASCADE;');
+            
+            // Create users table
+            await pgClient.query(`
+                CREATE TABLE users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) NOT NULL UNIQUE,
+                    password VARCHAR(255) NOT NULL
+                );
+            `);
+            
+            // Create address table
+            await pgClient.query(`
+                CREATE TABLE address (
+                    id SERIAL PRIMARY KEY,
+                    city VARCHAR(255),
+                    pincode VARCHAR(20),
+                    street TEXT,
+                    country VARCHAR(255),
+                    userId INTEGER REFERENCES users(id) ON DELETE CASCADE
+                );
+            `);
+            
+            console.log('Database tables created successfully');
+        } catch (error) {
+            console.error('Error setting up database tables:', error);
+            process.exit(1);
+        }
     })
     .catch(err => {
         console.error('Failed to connect to database:', err);
@@ -78,12 +111,18 @@ app.post("/signup", async (req, res) => {
     });
   }
 });
+app.get("/meatadata",(req, res)=>{
+    const id = req.body.id;
+    const query1 ="SELECT * FROM users WHERE id=$1";
+    const response1=await pgClient.query(query1,[id]);
+    const query2="SELECT * FROM adress WHERE user_id=$1";
+    const response2=await pgClient.query(query1,[id]);
+    res.json({
+        user: response1.rows[0],
+        address: response2.rows[0]
+    })
 
-// Add a test endpoint to verify the server is running
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
+})
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
