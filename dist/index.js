@@ -98,9 +98,16 @@ app.post("/signup", async (req, res) => {
         });
     }
 });
-// Add a test endpoint to verify the server is running
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get("/meatadata", async (req, res) => {
+    const id = req.body.id;
+    const query1 = "SELECT * FROM users WHERE id=$1";
+    const response1 = await pgClient.query(query1, [id]);
+    const query2 = "SELECT * FROM adress WHERE user_id=$1";
+    const response2 = await pgClient.query(query1, [id]);
+    res.json({
+        user: response1.rows[0],
+        address: response2.rows[0]
+    });
 });
 // Start the server
 const PORT = process.env.PORT || 3000;
